@@ -14,8 +14,14 @@ public class Main {
         String un = KVStorage.get("un", "");
         String pwd = KVStorage.get("pwd", "");
         CredentialsProvider cp = GitUtil.createCredential(un, pwd);
-        GitUtil.commit(git, "测试", cp);
+        //GitUtil.commit(git, "测试", cp);
+//        GitUtil.push(git, cp);
 //        KVStorage.put("un", "123");
 //        KVStorage.put("pwd", "123");
+//        new GitShareFrame();
+        System.out.println("url: " + git.getRepository().getConfig().getString("remote", "origin", "url"));
+        System.out.println(git);
+
+
     }
 }
