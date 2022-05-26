@@ -13,12 +13,11 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 
@@ -155,7 +154,11 @@ public class GitShareFrame extends JFrame {
 
         StringBuilder relativePath = new StringBuilder();
         for (String s : pathList) {
-            relativePath.append("/").append(URLEncoder.encode(s).replace("+", "%20"));
+            try {
+                relativePath.append("/").append(URLEncoder.encode(s, "UTF-8").replace("+", "%20"));
+            } catch (UnsupportedEncodingException e) {
+                log.e("编码失败: " + e.getMessage());
+            }
         }
         String result;
         if (file.getName().endsWith("html")) {
@@ -306,7 +309,8 @@ public class GitShareFrame extends JFrame {
         jPanel.add(comp);
         JTextField searchField = new JTextField();
         searchField.setPreferredSize(new Dimension(0, 25));
-        searchField.addFocusListener(new JTextFieldHintListener(searchField, "搜索文件"));
+        JTextFieldHintListener hintListener = new JTextFieldHintListener(searchField, "在此输入开始搜索文件");
+        searchField.addFocusListener(hintListener);
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -321,7 +325,6 @@ public class GitShareFrame extends JFrame {
 
             @Override
             public void changedUpdate(DocumentEvent e) {
-                log.i("changedUpdate");
             }
         });
         jPanel.add(searchField, BorderLayout.SOUTH);
@@ -334,7 +337,7 @@ public class GitShareFrame extends JFrame {
         try {
             String searchKey = document.getText(0, document.getLength());
             //log.i("SearchKey: " + searchKey);
-            if (StringUtils.isEmpty(searchKey)) {
+            if (StringUtils.isEmpty(searchKey) || StringUtils.equals(searchKey, "在此输入开始搜索文件")) {
                 fileList.refresh();
             } else {
                 fileList.searchFile(searchKey);
