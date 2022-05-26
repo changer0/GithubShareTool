@@ -69,7 +69,7 @@ public class GitShareFrame extends JFrame {
     // 基础逻辑控制
     ///////////////////////////////////////////////////////////////////////////
 
-    private void createCredential() {
+    private void configCredentialProvider() {
         if (credentialsProvider != null) {
             return;
         }
@@ -81,31 +81,34 @@ public class GitShareFrame extends JFrame {
         }
         log.i("用户名密码配置成功");
         credentialsProvider = new UsernamePasswordCredentialsProvider(un, pwd);
+
+        if (gitHelper != null) {
+            gitHelper.setProvider(credentialsProvider);
+        }
     }
 
     private void createGitHelper(String gitPath) {
-        curGitPath = gitPath;
-        KVStorage.put("git_path", gitPath);
-        refreshCurGitPath();
-        createCredential();
-        if (StringUtils.isEmpty(curGitPath)) {
+        if (StringUtils.isEmpty(gitPath)) {
             log.e("未配置仓库 =>拖拽或【仓库配置】");
             return;
         }
-        log.i("仓库地址已配置: " + curGitPath);
-        if (credentialsProvider == null) {
-            return;
-        }
-        log.i("Git 令牌已配置");
         try {
-            gitHelper = new GitHelper(new File(curGitPath), credentialsProvider);
-            log.i("Git 配置成功: " + curGitPath);
+            gitHelper = new GitHelper(new File(gitPath));
+            configCredentialProvider();
+            curGitPath = gitPath;
+            KVStorage.put("git_path", curGitPath);
+            log.i("仓库地址已配置: " + gitPath);
         } catch (IOException e) {
             log.e("请确保该目录为 Git 工程!");
+            gitHelper = null;
+            curGitPath = "";
         }
-        fileList.openItem(new File(curGitPath));
-    }
 
+        refreshCurGitPath();
+        if (!StringUtils.isEmpty(curGitPath)) {
+            fileList.openItem(new File(curGitPath));
+        }
+    }
 
     private void copyShareLink(File file) {
         if (isReleasing) {
@@ -167,6 +170,10 @@ public class GitShareFrame extends JFrame {
         if (isReleasing) {
             return;
         }
+        if (gitHelper == null) {
+            createGitHelper(curGitPath);
+            return;
+        }
         isReleasing = true;
         TaskHandler.getInstance().enqueue(() -> {
             try {
@@ -178,8 +185,8 @@ public class GitShareFrame extends JFrame {
                 log.i("开始推送...");
                 gitHelper.push();
                 log.i("发布完成");
-            } catch (GitAPIException | IOException e) {
-                log.e("git 发生错误: " + e.getMessage());
+            } catch (Exception e) {
+                log.e("git 发生错误: 请检查配置" + e.getMessage());
             }
             isReleasing = false;
         });
@@ -194,7 +201,6 @@ public class GitShareFrame extends JFrame {
                 return true;
             }
             //2. 检查是否有未 add commit 的
-            Status status = gitHelper.status();
             if (!gitHelper.status().isClean()) {
                 return true;
             }
@@ -362,8 +368,9 @@ public class GitShareFrame extends JFrame {
                 super.mouseClicked(e);
                 KVStorage.put(KEY_UN, unField.getText());
                 KVStorage.put(KEY_PWD, pwdField.getText());
-                log.i("用户名密码已保存");
-                createGitHelper(curGitPath);
+                //log.i("用户名密码已保存");
+                dialog.dispose();
+                configCredentialProvider();
             }
         });
         pane.add(gitPathButton);

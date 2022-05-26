@@ -25,10 +25,15 @@ public class GitHelper {
         return git;
     }
 
-    public GitHelper(File file, CredentialsProvider provider) throws IOException {
+    public GitHelper(File file) throws IOException {
         git = Git.open(file);
-        this.provider = provider;
         repository = git.getRepository();
+    }
+
+
+
+    public void setProvider(CredentialsProvider provider) {
+        this.provider = provider;
     }
 
     public static CredentialsProvider createCredential(String userName, String password) {
@@ -53,6 +58,9 @@ public class GitHelper {
 
 
     public Git fromCloneRepository(String repoUrl, String cloneDir) throws GitAPIException {
+        if (provider == null) {
+            throw new RuntimeException("未配置令牌");
+        }
         return Git.cloneRepository()
                 .setCredentialsProvider(provider)
                 .setURI(repoUrl)
@@ -77,6 +85,9 @@ public class GitHelper {
     public void push(String branch) throws GitAPIException, IOException {
         if (branch == null) {
             branch = git.getRepository().getBranch();
+        }
+        if (provider == null) {
+            throw new RuntimeException("未配置令牌");
         }
         git.push()
                 .setCredentialsProvider(provider)
