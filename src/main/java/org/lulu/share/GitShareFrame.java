@@ -300,7 +300,7 @@ public class GitShareFrame extends JFrame {
         jPanel.add(comp);
         JTextField searchField = new JTextField();
         searchField.setPreferredSize(new Dimension(0, 25));
-        searchField.addFocusListener(new JTextFieldHintListener(searchField, "开始搜索"));
+        searchField.addFocusListener(new JTextFieldHintListener(searchField, "搜索文件"));
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
