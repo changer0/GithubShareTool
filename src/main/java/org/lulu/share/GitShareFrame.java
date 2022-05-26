@@ -210,7 +210,7 @@ public class GitShareFrame extends JFrame {
         Repository repository = gitHelper.getRepository();
         try {
             // 1. 检查是否提交
-            if (!repository.resolve("origin/master").equals(repository.resolve("master"))) {
+            if (!repository.resolve("origin/" + curBranch).equals(repository.resolve(curBranch))) {
                 return true;
             }
             //2. 检查是否有未 add commit 的
