@@ -8,6 +8,10 @@ import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -45,11 +49,12 @@ public class GitShareFrame extends JFrame {
     private CredentialsProvider credentialsProvider;
     private JLabel gitPathLabel;
 
+    private JCheckBoxSet checkBoxSet = new JCheckBoxSet();
     private volatile boolean isReleasing = false;
 
     public GitShareFrame() throws HeadlessException {
         super("GitHub 分享工具");
-
+        fileList.setShowHide(false);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         //禁止调整大小
         setResizable(false);
@@ -293,7 +298,43 @@ public class GitShareFrame extends JFrame {
 
         jPanel.add(jTextField, BorderLayout.NORTH);
         jPanel.add(comp);
+        JTextField searchField = new JTextField();
+        searchField.setPreferredSize(new Dimension(0, 25));
+        searchField.addFocusListener(new JTextFieldHintListener(searchField, "开始搜索"));
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                trySearch(e);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                trySearch(e);
+
+            }
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                log.i("changedUpdate");
+            }
+        });
+        jPanel.add(searchField, BorderLayout.SOUTH);
+
         add(jPanel);
+    }
+
+    private void trySearch(DocumentEvent e) {
+        Document document = e.getDocument();
+        try {
+            String searchKey = document.getText(0, document.getLength());
+            //log.i("SearchKey: " + searchKey);
+            if (StringUtils.isEmpty(searchKey)) {
+                fileList.refresh();
+            } else {
+                fileList.searchFile(searchKey);
+            }
+        } catch (BadLocationException ex) {
+            ex.printStackTrace();
+        }
     }
 
     /**
@@ -333,9 +374,26 @@ public class GitShareFrame extends JFrame {
         addRightButton(box, "清除日志", event -> {
             log.clear();
         });
-
+        addShowHintFileCheck(box);
         jPanel.add(box);
         add(jPanel);
+    }
+
+    private void addShowHintFileCheck(Box box) {
+        box.add(Box.createVerticalStrut(10));
+        boolean showHintFile = StringUtils.equals(KVStorage.get("show_hint_file", "FALSE"), "TRUE");
+        fileList.setShowHide(showHintFile);
+        checkBoxSet.showHintFile.setSelected(showHintFile);
+        checkBoxSet.showHintFile.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                KVStorage.put("show_hint_file", checkBoxSet.showHintFile.isSelected() ? "TRUE": "FALSE");
+                fileList.setShowHide(checkBoxSet.showHintFile.isSelected());
+                fileList.refresh();
+            }
+        });
+        box.add(checkBoxSet.showHintFile);
     }
 
     public void showGitTokenConfigDialog() {

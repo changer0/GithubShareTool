@@ -17,6 +17,12 @@ public class FileList extends JList<FileList.FileItem> {
 
     private FileRightSelectedListener fileRightSelectedListener;
 
+    private boolean isShowHide = true;
+
+    public void setShowHide(boolean showHide) {
+        isShowHide = showHide;
+    }
+
     public FileList() {
         setCellRenderer(new FileListCellRenderer());
         setModel(new FileListModel());
@@ -65,16 +71,47 @@ public class FileList extends JList<FileList.FileItem> {
             subFiles = fsv.getRoots();
 
         ((DefaultListModel<FileItem>) getModel()).clear();
-        for (File subFile : subFiles)
+        for (File subFile : subFiles){
+            if (!isShowHide && subFile.isHidden()) {
+                continue;
+            }
             ((DefaultListModel<FileItem>) getModel()).addElement(new FileItem(fsv.getSystemDisplayName(subFile),
                     fsv.getSystemIcon(subFile), subFile));
+        }
 
         if (item.file != null)
             nowDir = item.file;
 
         // 回调监听器
-        if (fileOpenListener != null)
+        if (fileOpenListener != null) {
             fileOpenListener.fileOpenEvent(nowDir);
+        }
+    }
+
+    public void searchFile(String key) {
+        //FileItem nowItem = new FileItem(fsv.getSystemDisplayName(nowDir), fsv.getSystemIcon(nowDir), nowDir);
+        File[] files = fsv.getFiles(nowDir, false);
+        ((DefaultListModel<FileItem>) getModel()).clear();
+        innerSearch(key, files);
+    }
+
+    private void innerSearch(String key, File[] files) {
+        if (files == null) {
+            return;
+        }
+        for (File subFile : files) {
+            if (!isShowHide && subFile.isHidden()) {
+                continue;
+            }
+            if (subFile.isDirectory()) {
+                innerSearch(key, subFile.listFiles());
+                continue;
+            }
+            if (subFile.getName().toLowerCase().contains(key.toLowerCase())) {
+                ((DefaultListModel<FileItem>) getModel()).addElement(new FileItem(fsv.getSystemDisplayName(subFile),
+                        fsv.getSystemIcon(subFile), subFile));
+            }
+        }
     }
 
     public void refresh() {
