@@ -1,7 +1,6 @@
 package org.lulu.share;
 
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.CredentialsProvider;

@@ -72,6 +72,9 @@ public class GitHelper {
     }
 
     public void commit(String message) throws GitAPIException {
+        for (String s : status().getMissing()) {
+            git.rm().addFilepattern(s).call();
+        }
         git.add().addFilepattern(".").call();
         git.commit()
                 .setMessage(message)
