@@ -24,7 +24,7 @@ public class Main {
 //        GitUtil.push(git, cp);
 //        KVStorage.put("un", "123");
 //        KVStorage.put("pwd", "123");
-//        new GitShareFrame();
+        new GitShareFrame();
         Repository repository = git.getRepository();
         String url = repository.getConfig().getString("remote", "origin", "url").replace(".git", "");
         System.out.println("url: " + url);

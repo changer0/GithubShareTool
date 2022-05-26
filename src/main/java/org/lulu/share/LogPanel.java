@@ -6,12 +6,12 @@ import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class LogPane extends JScrollPane{
+public class LogPanel extends JScrollPane{
     JTextArea outPutTextArea = new JTextArea();
 
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss" );
 
-    public LogPane() {
+    public LogPanel() {
         //要先配置才能实现自动滚动
         outPutTextArea.setEnabled(false);
         //自动换行
@@ -24,7 +24,7 @@ public class LogPane extends JScrollPane{
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
     }
 
-    public void log(String msg) {
+    public void i(String msg) {
         msg = msg.trim();
         if (msg.isEmpty()) {
             return;
@@ -33,6 +33,12 @@ public class LogPane extends JScrollPane{
         outPutTextArea.append(sdf.format(date) + " " + msg + "\n");
         System.out.println(msg);
     }
+
+    public void e(String msg) {
+        i("ERROR: " + msg);
+    }
+
+
     public void clear() {
         outPutTextArea.setText("");
     }
