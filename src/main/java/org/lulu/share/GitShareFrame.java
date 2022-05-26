@@ -1,5 +1,6 @@
 package org.lulu.share;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Repository;
@@ -8,6 +9,8 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -266,9 +269,20 @@ public class GitShareFrame extends JFrame {
 
         fileList.setFileRightSelectedListener((e, file) -> {
             JPopupMenu jPopupMenu = new JPopupMenu();
-            JMenuItem menuItem = new JMenuItem("复制分享链接");
-            menuItem.addActionListener(e1 -> copyShareLink(file));
-            jPopupMenu.add(menuItem);
+            JMenuItem copyLink = new JMenuItem("复制分享链接");
+            JMenuItem delete = new JMenuItem("删除");
+            copyLink.addActionListener(e1 -> copyShareLink(file));
+            delete.addActionListener(e12 -> {
+                try {
+                    File dir = file.getParentFile();
+                    FileUtils.deleteQuietly(file);
+                    fileList.openItem(dir);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            });
+            jPopupMenu.add(copyLink);
+            jPopupMenu.add(delete);
             jPopupMenu.show(fileList, e.getX(), e.getY());
         });
 
