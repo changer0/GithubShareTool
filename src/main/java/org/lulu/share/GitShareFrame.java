@@ -52,6 +52,8 @@ public class GitShareFrame extends JFrame {
     private JCheckBoxSet checkBoxSet = new JCheckBoxSet();
     private volatile boolean isReleasing = false;
 
+    private String curBranch = "master";
+
     public GitShareFrame() throws HeadlessException {
         super("GitHub 分享工具");
         fileList.setShowHide(false);
@@ -155,9 +157,13 @@ public class GitShareFrame extends JFrame {
         for (String s : pathList) {
             relativePath.append("/").append(URLEncoder.encode(s).replace("+", "%20"));
         }
-
-        String htmlPreviewPrefix = "https://htmlpreview.github.io/?";
-        String result = htmlPreviewPrefix + remoteUrl + "/blob/master" + relativePath;
+        String result;
+        if (file.getName().endsWith("html")) {
+            String htmlPreviewPrefix = "https://htmlpreview.github.io/?";
+            result = htmlPreviewPrefix + remoteUrl + "/blob/" + curBranch + relativePath;
+        } else {
+            result = "https://raw.githubusercontent.com" + remoteUrl.replace("https://github.com", "") + "/" + curBranch + relativePath;
+        }
         //log.i("相对路径:" + t);
         ClipUtil.setSysClipboardText(result);
         log.i("成功复制到剪切板: " + result);
@@ -312,6 +318,7 @@ public class GitShareFrame extends JFrame {
                 trySearch(e);
 
             }
+
             @Override
             public void changedUpdate(DocumentEvent e) {
                 log.i("changedUpdate");
@@ -388,7 +395,7 @@ public class GitShareFrame extends JFrame {
             @Override
             public void mouseClicked(MouseEvent e) {
                 super.mouseClicked(e);
-                KVStorage.put("show_hint_file", checkBoxSet.showHintFile.isSelected() ? "TRUE": "FALSE");
+                KVStorage.put("show_hint_file", checkBoxSet.showHintFile.isSelected() ? "TRUE" : "FALSE");
                 fileList.setShowHide(checkBoxSet.showHintFile.isSelected());
                 fileList.refresh();
             }
@@ -397,7 +404,7 @@ public class GitShareFrame extends JFrame {
     }
 
     public void showGitTokenConfigDialog() {
-        JDialog dialog=new JDialog(this, "令牌配置",true);
+        JDialog dialog = new JDialog(this, "令牌配置", true);
         dialog.setSize(202, 180);
 
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -406,7 +413,7 @@ public class GitShareFrame extends JFrame {
         dialog.setLocation(x, y);
         dialog.setDefaultCloseOperation(dialog.HIDE_ON_CLOSE);
 
-        Container pane= dialog.getContentPane();
+        Container pane = dialog.getContentPane();
         pane.setLayout(null);
 
         JLabel label0 = new JLabel("GitHub 访问令牌: ");
@@ -415,14 +422,14 @@ public class GitShareFrame extends JFrame {
         JLabel label1 = new JLabel("用户名:");
         label1.setBounds(PADDING, PADDING + 30, 50, 25);
         pane.add(label1);
-        JTextField  unField = new JTextField();
+        JTextField unField = new JTextField();
         unField.setBounds(60, PADDING + 30, 80, 25);
         pane.add(unField);
 
         JLabel label2 = new JLabel("密码:");
         label2.setBounds(PADDING, PADDING + 60, 50, 25);
         pane.add(label2);
-        JPasswordField  pwdField = new JPasswordField();
+        JPasswordField pwdField = new JPasswordField();
         pwdField.setBounds(60, PADDING + 60, 80, 25);
         pane.add(pwdField);
 
