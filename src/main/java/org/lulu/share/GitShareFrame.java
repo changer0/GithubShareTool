@@ -20,6 +20,10 @@ public class GitShareFrame extends JFrame {
 
     public static final int PADDING = 10;
 
+    public static final String KEY_UN = "un";
+
+    public static final String KEY_PWD = "pwd";
+
     public static final int W = 500;
 
     public static final int H = 500;
@@ -69,10 +73,10 @@ public class GitShareFrame extends JFrame {
         if (credentialsProvider != null) {
             return;
         }
-        String un = KVStorage.get("un", "");
-        String pwd = KVStorage.get("pwd", "");
+        String un = KVStorage.get(KEY_UN, "");
+        String pwd = KVStorage.get(KEY_PWD, "");
         if (StringUtils.isAnyEmpty(un, pwd)) {
-            log.e("请配置 GitHub 用户名密码!");
+            log.e("未配置 GitHub 令牌 =>【令牌配置】");
             return;
         }
         log.i("用户名密码配置成功");
@@ -84,20 +88,22 @@ public class GitShareFrame extends JFrame {
         KVStorage.put("git_path", gitPath);
         refreshCurGitPath();
         createCredential();
-        if (!StringUtils.isEmpty(curGitPath) && credentialsProvider != null) {
-            try {
-                gitHelper = new GitHelper(new File(curGitPath), credentialsProvider);
-                log.i("仓库配置成功: " + curGitPath);
-            } catch (IOException e) {
-                log.e("请确保该目录为 Git 工程!");
-            }
-        } else {
-            log.e("未配置 Git 仓库, 请点击【仓库配置】");
+        if (StringUtils.isEmpty(curGitPath)) {
+            log.e("未配置仓库 =>拖拽或【仓库配置】");
+            return;
         }
-
-        if (!StringUtils.isEmpty(curGitPath)) {
-            fileList.openItem(new File(curGitPath));
+        log.i("仓库地址已配置: " + curGitPath);
+        if (credentialsProvider == null) {
+            return;
         }
+        log.i("Git 令牌已配置");
+        try {
+            gitHelper = new GitHelper(new File(curGitPath), credentialsProvider);
+            log.i("Git 配置成功: " + curGitPath);
+        } catch (IOException e) {
+            log.e("请确保该目录为 Git 工程!");
+        }
+        fileList.openItem(new File(curGitPath));
     }
 
 
@@ -124,7 +130,7 @@ public class GitShareFrame extends JFrame {
         }
         //tryAutoRelease();
         if (checkNeedRelease()) {
-            log.e("暂未发布, 请点击【一键发布】");
+            log.e("暂未发布 => 【一键发布】");
             return;
         }
         //查找相对路径!
@@ -289,11 +295,13 @@ public class GitShareFrame extends JFrame {
             fileList.openItem(new File(curGitPath));
         });
 
-        addRightButton(box, "仓库配置", event -> {
-//            SelectFileUtil.selectDir(curGitPath, selectedFile -> {
-//                createGitHelper(selectedFile.getAbsolutePath());
-//            });
-            showGitRepoConfigDialog();
+        addRightButton(box, "仓库地址", event -> {
+            SelectFileUtil.selectDir(curGitPath, selectedFile -> {
+                createGitHelper(selectedFile.getAbsolutePath());
+            });
+        });
+        addRightButton(box, "令牌配置", event -> {
+            showGitTokenConfigDialog();
         });
 
         addRightButton(box, "一键发布", event -> {
@@ -311,9 +319,9 @@ public class GitShareFrame extends JFrame {
         add(jPanel);
     }
 
-    public void showGitRepoConfigDialog() {
-        JDialog dialog=new JDialog(this, "仓库配置",true);
-        dialog.setSize(202, 100);
+    public void showGitTokenConfigDialog() {
+        JDialog dialog=new JDialog(this, "令牌配置",true);
+        dialog.setSize(202, 180);
 
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         int x = (screenSize.width - dialog.getWidth()) / 2;
@@ -321,20 +329,45 @@ public class GitShareFrame extends JFrame {
         dialog.setLocation(x, y);
         dialog.setDefaultCloseOperation(dialog.HIDE_ON_CLOSE);
 
-
-        //            SelectFileUtil.selectDir(curGitPath, selectedFile -> {
-//                createGitHelper(selectedFile.getAbsolutePath());
-//            });
-
-
         Container pane= dialog.getContentPane();
         pane.setLayout(null);
-        JLabel label1 = new JLabel("密码: ");
-        label1.setBounds(PADDING, PADDING, 40, 30);
+
+        JLabel label0 = new JLabel("GitHub 访问令牌: ");
+        label0.setBounds(PADDING, PADDING, 100, 25);
+        pane.add(label0);
+        JLabel label1 = new JLabel("用户名:");
+        label1.setBounds(PADDING, PADDING + 30, 50, 25);
         pane.add(label1);
-        JPasswordField  un = new JPasswordField();
-        un.setBounds(60, PADDING, 80, 30);
-        pane.add(un);
+        JTextField  unField = new JTextField();
+        unField.setBounds(60, PADDING + 30, 80, 25);
+        pane.add(unField);
+
+        JLabel label2 = new JLabel("密码:");
+        label2.setBounds(PADDING, PADDING + 60, 50, 25);
+        pane.add(label2);
+        JPasswordField  pwdField = new JPasswordField();
+        pwdField.setBounds(60, PADDING + 60, 80, 25);
+        pane.add(pwdField);
+
+        String un = KVStorage.get(KEY_UN, "");
+        String pwd = KVStorage.get(KEY_PWD, "");
+        unField.setText(un);
+        pwdField.setText(pwd);
+
+        JButton gitPathButton = new JButton("保存");
+        gitPathButton.setBounds(PADDING + 10, PADDING + 90, 60, 30);
+        gitPathButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                KVStorage.put(KEY_UN, unField.getText());
+                KVStorage.put(KEY_PWD, pwdField.getText());
+                log.i("用户名密码已保存");
+                createGitHelper(curGitPath);
+            }
+        });
+        pane.add(gitPathButton);
+
         dialog.setVisible(true);
     }
 

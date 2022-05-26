@@ -5,6 +5,9 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 本地文件 kv 存储
@@ -23,9 +26,12 @@ import java.nio.charset.StandardCharsets;
  */
 public class KVStorage {
 
+    public static final Map<String, String> CACHE = new ConcurrentHashMap<>();
+
     public static void put(String key, String value) {
 
         try {
+            CACHE.put(key, value);
             File file = getAndCreateConfigFile();
 
             String s = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
@@ -45,6 +51,9 @@ public class KVStorage {
     }
 
     public static String get(String key, String defaultValue) {
+        if (CACHE.containsKey(key)) {
+            return CACHE.get(key);
+        }
         String s = "";
         try {
             s = FileUtils.readFileToString(getAndCreateConfigFile(), StandardCharsets.UTF_8);
