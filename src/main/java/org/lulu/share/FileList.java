@@ -15,6 +15,8 @@ public class FileList extends JList<FileList.FileItem> {
     private File nowDir;
     private FileOpenListener fileOpenListener;
 
+    private FileRightSelectedListener fileRightSelectedListener;
+
     public FileList() {
         setCellRenderer(new FileListCellRenderer());
         setModel(new FileListModel());
@@ -23,13 +25,25 @@ public class FileList extends JList<FileList.FileItem> {
             @Override
             public void mouseClicked(MouseEvent e) {
                 super.mouseClicked(e);
-
-                if (e.getClickCount() == 2) {
-                    int index = locationToIndex(e.getPoint());
-                    if (index >= 0) {
-                        FileItem v = getModel().getElementAt(index);
-                        if (v.file.isDirectory())
-                            openItem(v);
+                int index = locationToIndex(e.getPoint());
+                if (index >= 0) {
+                    FileItem v = getModel().getElementAt(index);
+                    switch (e.getButton()) {
+                        case MouseEvent.BUTTON1:
+                            if (e.getClickCount() == 2) {
+                                if (v.file.isDirectory()) {
+                                    openItem(v);
+                                }
+                            }
+                            break;
+                        case MouseEvent.BUTTON3:
+                            if (e.getClickCount() == 1) {
+                                if (fileRightSelectedListener != null) {
+                                    fileRightSelectedListener.onSelected(e, v.file);
+                                }
+                            }
+                            break;
+                        default:
                     }
                 }
             }
@@ -63,6 +77,10 @@ public class FileList extends JList<FileList.FileItem> {
             fileOpenListener.fileOpenEvent(nowDir);
     }
 
+    public void refresh() {
+        openItem(nowDir);
+    }
+
     public void returnDir() {
         if (nowDir == null)
             return;
@@ -79,9 +97,18 @@ public class FileList extends JList<FileList.FileItem> {
         this.fileOpenListener = fileOpenListener;
     }
 
+    public void setFileRightSelectedListener(FileRightSelectedListener listener) {
+        this.fileRightSelectedListener = listener;
+    }
+
+
     // 文件打开监听器
     public interface FileOpenListener {
         void fileOpenEvent(File nowDir);
+    }
+
+    public interface FileRightSelectedListener {
+        void onSelected(MouseEvent e, File file);
     }
 
     private static class FileListModel extends DefaultListModel<FileItem> {

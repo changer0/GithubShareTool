@@ -1,6 +1,7 @@
 package org.lulu.share;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
@@ -17,14 +18,28 @@ public class GitHelper {
 
     private CredentialsProvider provider;
 
+    Repository repository;
+
+
+    public Git getGit() {
+        return git;
+    }
+
     public GitHelper(File file, CredentialsProvider provider) throws IOException {
         git = Git.open(file);
         this.provider = provider;
+        repository = git.getRepository();
     }
 
     public static CredentialsProvider createCredential(String userName, String password) {
         return new UsernamePasswordCredentialsProvider(userName, password);
     }
+
+
+    public Repository getRepository() {
+        return repository;
+    }
+
 
     public Repository getRepositoryFromDir(String dir) throws IOException {
         return new FileRepositoryBuilder()
@@ -44,6 +59,9 @@ public class GitHelper {
                 .setDirectory(new File(cloneDir)).call();
     }
 
+    public void pull() throws GitAPIException {
+        git.pull().call();
+    }
 
     public void commit(String message) throws GitAPIException {
         git.add().addFilepattern(".").call();
@@ -65,4 +83,11 @@ public class GitHelper {
                 .setRemote("origin").setRefSpecs(new RefSpec(branch)).call();
     }
 
+    public String getRemoteUrl() {
+        return repository.getConfig().getString("remote", "origin", "url").replace(".git", "");
+    }
+
+    public Status status() throws GitAPIException {
+        return git.status().call();
+    }
 }
