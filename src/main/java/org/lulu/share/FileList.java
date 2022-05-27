@@ -115,6 +115,9 @@ public class FileList extends JList<FileList.FileItem> {
     }
 
     public void refresh() {
+        if (nowDir == null) {
+            return;
+        }
         openItem(nowDir);
     }
 
