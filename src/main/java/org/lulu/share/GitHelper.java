@@ -3,6 +3,7 @@ package org.lulu.share;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.transport.CredentialsProvider;
@@ -12,6 +13,8 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class GitHelper {
     private final Git git;
@@ -103,5 +106,75 @@ public class GitHelper {
 
     public Status status() throws GitAPIException {
         return git.status().call();
+    }
+
+    public List<String> getRemoteBranch() throws GitAPIException {
+        List<String> branchNameList = new ArrayList<>();
+        for (Ref ref : git.lsRemote().call()) {
+            String refName = ref.getName();
+            if (refName.startsWith("refs/heads/")) {                       //需要进行筛选
+                String branchName = refName.replace("refs/heads/", "");
+                branchNameList.add(branchName);
+            }
+        }
+        return branchNameList;
+    }
+
+    public List<String> getLocalBranch() throws GitAPIException {
+        List<String> branchNameList = new ArrayList<>();
+        for (Ref ref : git.branchList().call()) {
+            String refName = ref.getName();
+            if (refName.startsWith("refs/heads/")) {                       //需要进行筛选
+                String branchName = refName.replace("refs/heads/", "");
+                branchNameList.add(branchName);
+            }
+        }
+        return branchNameList;
+    }
+
+    /**
+     * 远程 本地
+     *  1   0  √
+     *  0   0  √
+     *  0   1  √
+      * 1   1  √
+     * @param branch
+     * @throws GitAPIException
+     */
+    public void createBranchWithRemote(String branch) throws GitAPIException {
+
+        boolean isRemote = getRemoteBranch().contains(branch);
+        boolean isLocal = getLocalBranch().contains(branch);
+        System.out.println("远程是否存在: " + isRemote);
+        System.out.println("本地是否存在: " + isLocal);
+
+        git.fetch();
+
+        //远程存在
+        if (isRemote) {
+            //本地存在
+            if (isLocal) {
+                git.checkout().setCreateBranch(false).setName(branch).call();
+            } else {
+                //本地不存在
+                git.checkout().setCreateBranch(true).setName(branch).setStartPoint("origin/" + branch).call();
+            }
+            //拉取最新的提交
+            git.pull().call();
+        } else {
+            Ref ref;
+            //远程分支不存在, 创建
+            if (isLocal) {
+                ref = git.checkout().setCreateBranch(false).setName(branch).call();
+            } else {
+                //本地不存在
+                ref = git.branchCreate().setName(branch).call();
+            }
+            git.push().add(ref).setCredentialsProvider(provider).call();
+
+            //切到当前分支
+            git.checkout().setCreateBranch(false).setName(branch).call();
+
+        }
     }
 }

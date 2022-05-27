@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class GitShareFrame extends JFrame {
 
@@ -37,6 +38,7 @@ public class GitShareFrame extends JFrame {
 
     private final FileList fileList = new FileList();
 
+    private final JComboBox<String> branchListBox = new JComboBox<>();
 
     /**
      * 当前 Git 路径
@@ -50,8 +52,6 @@ public class GitShareFrame extends JFrame {
 
     private JCheckBoxSet checkBoxSet = new JCheckBoxSet();
     private volatile boolean isReleasing = false;
-
-    private String curBranch = "master";
 
     public GitShareFrame() throws HeadlessException {
         super("GitHub 分享工具");
@@ -69,6 +69,7 @@ public class GitShareFrame extends JFrame {
         setLayout(null);
         addContainer();
         createGitHelper(KVStorage.get("git_path", ""));
+        addRemoteBranchList();
         //必须最后调用
         setVisible(true);
     }
@@ -160,6 +161,7 @@ public class GitShareFrame extends JFrame {
                 log.e("编码失败: " + e.getMessage());
             }
         }
+        String curBranch = getCurBranch();
         String result;
         if (file.getName().endsWith("html")) {
             String htmlPreviewPrefix = "https://htmlpreview.github.io/?";
@@ -193,6 +195,8 @@ public class GitShareFrame extends JFrame {
         isReleasing = true;
         TaskHandler.getInstance().enqueue(() -> {
             try {
+                log.i("切换分支: " + getCurBranch());
+                gitHelper.createBranchWithRemote(getCurBranch());
                 log.i("开始发布");
                 log.i("开始拉取...");
                 gitHelper.pull();
@@ -211,6 +215,7 @@ public class GitShareFrame extends JFrame {
 
     private boolean checkNeedRelease() {
         Repository repository = gitHelper.getRepository();
+        String curBranch = getCurBranch();
         try {
             // 1. 检查是否提交
             if (!repository.resolve("origin/" + curBranch).equals(repository.resolve(curBranch))) {
@@ -226,6 +231,9 @@ public class GitShareFrame extends JFrame {
         return false;
     }
 
+    public String getCurBranch() {
+        return KVStorage.get("cur_branch", "master");
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // UI 控制
@@ -259,6 +267,32 @@ public class GitShareFrame extends JFrame {
         gitPathLabel.setBounds(80, PADDING, W - 100, 20);
         add(back);
         add(gitPathLabel);
+    }
+
+    private void addRemoteBranchList() {
+        try {
+            JLabel comp = new JLabel("分支:");
+            comp.setBounds(W - 160, PADDING, 80, 20);
+            add(comp);
+            String[] remoteList = gitHelper.getRemoteBranch().toArray(new String[0]);
+            Arrays.sort(remoteList);
+            DefaultComboBoxModel<String> modelList = new DefaultComboBoxModel<>(remoteList);
+            branchListBox.setModel(modelList);
+            branchListBox.setBounds(W - 120, PADDING, 80, 20);
+            add(branchListBox);
+
+            String curBranch = getCurBranch();
+            //提前保存一份
+            KVStorage.put("cur_branch", curBranch);
+            branchListBox.setSelectedItem(curBranch);
+            branchListBox.addActionListener(e -> {
+                String selectedItem = (String) modelList.getSelectedItem();
+                log.i("选中" + selectedItem + "分支");
+                KVStorage.put("cur_branch", selectedItem);
+            });
+        } catch (GitAPIException e) {
+            log.e("获取远程分支失败!");
+        }
     }
 
     private void refreshCurGitPath() {

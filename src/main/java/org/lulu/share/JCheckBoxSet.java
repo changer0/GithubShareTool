@@ -3,5 +3,5 @@ package org.lulu.share;
 import javax.swing.*;
 
 public class JCheckBoxSet {
-    public JCheckBox showHintFile = new JCheckBox("隐藏文件");
+    public JCheckBox showHintFile = new JCheckBox("显示隐藏");
 }
