@@ -162,7 +162,8 @@ public class GitShareFrame extends JFrame {
                 log.e("编码失败: " + e.getMessage());
             }
         }
-        String curBranch = getCurBranch();
+
+        String curBranch = EncoderUtil.encode(getCurBranch());
         String result;
         if (file.getName().endsWith("html")) {
             String htmlPreviewPrefix = "https://htmlpreview.github.io/?";
@@ -411,7 +412,30 @@ public class GitShareFrame extends JFrame {
                 super.mouseClicked(e);
                 String newBranch = jTextField.getText();
                 log.i("正在创建分支: " + newBranch);
+                boolean isContainsBranch = false;
+                try {
+                    isContainsBranch = gitHelper.getLocalBranch().contains(newBranch) || gitHelper.getRemoteBranch().contains(newBranch);
+                    if (isContainsBranch) {
+                        log.i("分支已存在");
+                    }
+                } catch (GitAPIException ex) {
+                    log.e("查询分支出错!");
+                }
+                boolean finalIsContainsBranch = isContainsBranch;
                 workThreadSwitchBranch(newBranch, () -> {
+                    //分支切换完之后删掉文件
+                    File workTree = gitHelper.repository.getWorkTree();
+                    File[] files = workTree.listFiles();
+                    if (files != null && !finalIsContainsBranch) {
+                        for (File file : files) {
+                            if (StringUtils.equals(".git", file.getName())) {
+                                continue;
+                            }
+                            FileUtils.deleteQuietly(file);
+                        }
+                    }
+                    oneKeyRelease();
+                    fileList.refresh();
                     refreshBranchList();
                 });
                 dialog.dispose();
