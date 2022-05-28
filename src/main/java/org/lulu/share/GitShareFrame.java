@@ -13,6 +13,8 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -85,7 +87,7 @@ public class GitShareFrame extends JFrame {
             log.e("未配置 GitHub 令牌 =>【令牌配置】");
             return;
         }
-        log.i("用户名密码配置成功");
+        log.i("令牌配置成功");
         credentialsProvider = new UsernamePasswordCredentialsProvider(un, pwd);
 
         if (gitHelper != null) {
@@ -111,7 +113,7 @@ public class GitShareFrame extends JFrame {
         }
 
         refreshCurGitPath();
-        refreshBranchList();
+        TaskHandler.getInstance().enqueue(this::refreshBranchList);
         if (!StringUtils.isEmpty(curGitPath)) {
             fileList.openItem(new File(curGitPath));
         }
@@ -233,6 +235,23 @@ public class GitShareFrame extends JFrame {
         return KVStorage.get("cur_branch", "master");
     }
 
+    private void workThreadSwitchBranch(String selectedItem, Runnable callback) {
+        TaskHandler.getInstance().enqueue(() -> {
+            log.i("切换" + selectedItem + "分支...");
+            KVStorage.put("cur_branch", selectedItem);
+            try {
+                gitHelper.createBranchWithRemote(selectedItem);
+                fileList.refresh();
+                log.i(selectedItem + "分支切换成功");
+                if (callback != null) {
+                    callback.run();
+                }
+            } catch (GitAPIException ex) {
+                log.e(selectedItem + "分支切换失败");
+            }
+        });
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // UI 控制
     ///////////////////////////////////////////////////////////////////////////
@@ -272,23 +291,25 @@ public class GitShareFrame extends JFrame {
     private void refreshBranchList() {
         try {
             if (gitHelper == null) {
-                branchListBox.setVisible(false);
+                addEmptyBranch();
                 return;
             }
             String[] remoteList = gitHelper.getRemoteBranch().toArray(new String[0]);
             if (remoteList.length <= 0) {
-                branchListBox.setVisible(false);
+                addEmptyBranch();
                 return;
             }
-            branchListBox.setVisible(true);
             Arrays.sort(remoteList);
             DefaultComboBoxModel<String> modelList = new DefaultComboBoxModel<>(remoteList);
+            ((DefaultComboBoxModel<String>) branchListBox.getModel()).removeAllElements();
             branchListBox.setModel(modelList);
             branchListBox.setSelectedItem(getCurBranch());
             branchListBox.addActionListener(e -> {
+                if (e.getModifiers() <= 0) {
+                    return;
+                }
                 String selectedItem = (String) modelList.getSelectedItem();
-                log.i("选中" + selectedItem + "分支");
-                KVStorage.put("cur_branch", selectedItem);
+                workThreadSwitchBranch(selectedItem, null);
             });
 
         } catch (GitAPIException e) {
@@ -297,17 +318,71 @@ public class GitShareFrame extends JFrame {
 
     }
 
+    private void addEmptyBranch() {
+        DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) branchListBox.getModel();
+        model.removeAllElements();
+        branchListBox.setModel(new DefaultComboBoxModel<>(new String[]{"加载中.."}));
+    }
+
     private void addRemoteBranchList() {
         JLabel comp = new JLabel("分支:");
-        comp.setBounds(W - 160, PADDING, 80, 20);
+        comp.setBounds(W - 165, PADDING, 30, 20);
         add(comp);
 
-        branchListBox.setBounds(W - 120, PADDING, 80, 20);
+        branchListBox.setBounds(comp.getX() + comp.getWidth() + 5, PADDING, 80, 20);
         add(branchListBox);
         String curBranch = getCurBranch();
         //提前保存一份
         KVStorage.put("cur_branch", curBranch);
-        branchListBox.setVisible(false);
+        addEmptyBranch();
+        JButton addBranch = new JButton("+");
+        addBranch.setMargin(new Insets(0, 0, 0, 0));
+        addBranch.setBounds(branchListBox.getX() + branchListBox.getWidth() + 5, branchListBox.getY(), 20, 20);
+        addBranch.addActionListener(e -> showAddBranchDialog());
+        add(addBranch);
+    }
+
+    /**
+     * 展示添加分支的 Dialog
+     */
+    private void showAddBranchDialog() {
+        JDialog dialog = new JDialog(this, "添加分支", true);
+        dialog.setSize(202, 140);
+
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int x = (screenSize.width - dialog.getWidth()) / 2;
+        int y = (screenSize.height - dialog.getHeight()) / 2;
+        dialog.setLocation(x, y);
+        dialog.setDefaultCloseOperation(dialog.HIDE_ON_CLOSE);
+
+        Container pane = dialog.getContentPane();
+        pane.setLayout(null);
+
+        JLabel label0 = new JLabel("分支名: ");
+        label0.setBounds(PADDING, PADDING, 100, 25);
+        pane.add(label0);
+
+        JTextField jTextField = new JTextField();
+        jTextField.setBounds(60, PADDING, 80, 25);
+        pane.add(jTextField);
+
+
+        JButton save = new JButton("保存");
+        save.setBounds(PADDING, label0.getY() + label0.getHeight() + 10, 60, 30);
+        save.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                String newBranch = jTextField.getText();
+                log.i("正在创建分支: " + newBranch);
+                workThreadSwitchBranch(newBranch, () -> {
+                    refreshBranchList();
+                });
+                dialog.dispose();
+            }
+        });
+        pane.add(save);
+        dialog.setVisible(true);
     }
 
     private void refreshCurGitPath() {
@@ -455,7 +530,7 @@ public class GitShareFrame extends JFrame {
         box.add(checkBoxSet.showHintFile);
     }
 
-    public void showGitTokenConfigDialog() {
+    private void showGitTokenConfigDialog() {
         JDialog dialog = new JDialog(this, "令牌配置", true);
         dialog.setSize(202, 180);
 

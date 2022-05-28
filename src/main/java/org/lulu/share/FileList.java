@@ -6,6 +6,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.util.Arrays;
 
 /**
  * 文件列表
@@ -60,6 +61,7 @@ public class FileList extends JList<FileList.FileItem> {
         if (file.isFile()) {
             file = fsv.getParentDirectory(file);
         }
+        System.out.println("当前文件夹: " + Arrays.toString(file.listFiles()));
         openItem(new FileItem(fsv.getSystemDisplayName(file), fsv.getSystemIcon(file), file));
     }
 

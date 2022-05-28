@@ -19,11 +19,11 @@ public class Main {
 //        KVStorage.put("pwd", "123");
         new GitShareFrame();
 
-        GitHelper gitHelper = new GitHelper(new File("C:\\OtherProject\\ShareDoc"));
-        gitHelper.setProvider(cp);
-        List<String> remoteBranch = gitHelper.getRemoteBranch();
-        List<String> localBranch = gitHelper.getLocalBranch();
-        System.out.println("远程:" + remoteBranch);
-        System.out.println("本地:" + localBranch);
+//        GitHelper gitHelper = new GitHelper(new File("C:\\OtherProject\\ShareDoc"));
+//        gitHelper.setProvider(cp);
+//        List<String> remoteBranch = gitHelper.getRemoteBranch();
+//        List<String> localBranch = gitHelper.getLocalBranch();
+//        System.out.println("远程:" + remoteBranch);
+//        System.out.println("本地:" + localBranch);
     }
 }
