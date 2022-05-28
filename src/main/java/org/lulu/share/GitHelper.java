@@ -177,4 +177,21 @@ public class GitHelper {
 
         }
     }
+
+    public void removeRemoteBranch(String branch) throws GitAPIException {
+        RefSpec refSpec = new RefSpec()
+                .setSource(null)
+                .setDestination("refs/heads/" + branch);
+
+        git.push().setCredentialsProvider(provider).setRefSpecs(refSpec).setRemote("origin").call();
+    }
+
+    public void removeLocalBranch(String branch) throws GitAPIException {
+        git.branchDelete().setForce(true).setBranchNames(branch).call();
+    }
+
+    public void removeBranch(String branch) throws GitAPIException {
+        removeLocalBranch(branch);
+        removeRemoteBranch(branch);
+    }
 }

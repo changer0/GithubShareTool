@@ -13,7 +13,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -25,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class GitShareFrame extends JFrame {
+    public static final String DEFAULT_BRANCH = "master";
 
     public static final int PADDING = 10;
 
@@ -54,6 +54,7 @@ public class GitShareFrame extends JFrame {
 
     private JCheckBoxSet checkBoxSet = new JCheckBoxSet();
     private volatile boolean isReleasing = false;
+    private ActionListener branchListBoxListener;
 
     public GitShareFrame() throws HeadlessException {
         super("GitHub 分享工具");
@@ -87,7 +88,7 @@ public class GitShareFrame extends JFrame {
             log.e("未配置 GitHub 令牌 =>【令牌配置】");
             return;
         }
-        log.i("令牌配置成功");
+        log.i("令牌配置成功^v^");
         credentialsProvider = new UsernamePasswordCredentialsProvider(un, pwd);
 
         if (gitHelper != null) {
@@ -232,17 +233,21 @@ public class GitShareFrame extends JFrame {
     }
 
     public String getCurBranch() {
-        return KVStorage.get("cur_branch", "master");
+        return KVStorage.get("cur_branch", DEFAULT_BRANCH);
+    }
+
+    public void setCurBranch(String branch) {
+        KVStorage.put("cur_branch", branch);
     }
 
     private void workThreadSwitchBranch(String selectedItem, Runnable callback) {
         TaskHandler.getInstance().enqueue(() -> {
             log.i("切换" + selectedItem + "分支...");
-            KVStorage.put("cur_branch", selectedItem);
+            setCurBranch(selectedItem);
             try {
                 gitHelper.createBranchWithRemote(selectedItem);
                 fileList.refresh();
-                log.i(selectedItem + "分支切换成功");
+                log.i(selectedItem + "分支切换成功^v^");
                 if (callback != null) {
                     callback.run();
                 }
@@ -304,13 +309,16 @@ public class GitShareFrame extends JFrame {
             ((DefaultComboBoxModel<String>) branchListBox.getModel()).removeAllElements();
             branchListBox.setModel(modelList);
             branchListBox.setSelectedItem(getCurBranch());
-            branchListBox.addActionListener(e -> {
+
+            branchListBox.removeActionListener(branchListBoxListener);
+            branchListBoxListener = e -> {
                 if (e.getModifiers() <= 0) {
                     return;
                 }
                 String selectedItem = (String) modelList.getSelectedItem();
                 workThreadSwitchBranch(selectedItem, null);
-            });
+            };
+            branchListBox.addActionListener(branchListBoxListener);
 
         } catch (GitAPIException e) {
             log.e("获取远程分支失败!");
@@ -326,20 +334,48 @@ public class GitShareFrame extends JFrame {
 
     private void addRemoteBranchList() {
         JLabel comp = new JLabel("分支:");
-        comp.setBounds(W - 165, PADDING, 30, 20);
+        comp.setBounds(W - 180, PADDING, 30, 20);
         add(comp);
 
         branchListBox.setBounds(comp.getX() + comp.getWidth() + 5, PADDING, 80, 20);
         add(branchListBox);
         String curBranch = getCurBranch();
         //提前保存一份
-        KVStorage.put("cur_branch", curBranch);
+        setCurBranch(curBranch);
         addEmptyBranch();
         JButton addBranch = new JButton("+");
         addBranch.setMargin(new Insets(0, 0, 0, 0));
-        addBranch.setBounds(branchListBox.getX() + branchListBox.getWidth() + 5, branchListBox.getY(), 20, 20);
+        addBranch.setBounds(branchListBox.getX() + branchListBox.getWidth() + 5, (int) (branchListBox.getY() + (branchListBox.getHeight() - 15)/2f), 15, 15);
         addBranch.addActionListener(e -> showAddBranchDialog());
         add(addBranch);
+
+        JButton delBranch = new JButton("-");
+        delBranch.setMargin(new Insets(0, 0, 0, 0));
+        delBranch.setBounds(addBranch.getX() + addBranch.getWidth() + 5, addBranch.getY(), 15, 15);
+        delBranch.addActionListener(e -> {
+            String selectedItem = (String) branchListBox.getSelectedItem();
+            if (StringUtils.equals(DEFAULT_BRANCH, selectedItem)) {
+                log.e("默认分支不可删除!");
+                return;
+            }
+            //删除
+            TaskHandler.getInstance().enqueue(() -> {
+                try {
+
+                    setCurBranch(DEFAULT_BRANCH);
+                    gitHelper.createBranchWithRemote(DEFAULT_BRANCH);
+                    log.i("开始删除: " + selectedItem);
+                    gitHelper.removeBranch(selectedItem);
+                    log.i("切换默认分支:" + DEFAULT_BRANCH);
+                    refreshBranchList();
+                    log.i("删除成功^v^");
+                } catch (GitAPIException ex) {
+                    log.e("分支删除出错: " + ex.getMessage());
+                }
+            });
+
+        });
+        add(delBranch);
     }
 
     /**
