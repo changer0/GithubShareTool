@@ -469,12 +469,16 @@ public class GitShareFrame extends JFrame {
             copyLink.addActionListener(e1 -> copyShareLink(file));
             JMenuItem delete = new JMenuItem("删除");
             delete.addActionListener(e12 -> {
-                try {
-                    File dir = file.getParentFile();
-                    FileUtils.deleteQuietly(file);
-                    fileList.openItem(dir);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
+                int i = JOptionPane.showConfirmDialog(GitShareFrame.this, "确认删除文件: " + file.getName(),"删除文件", JOptionPane.YES_OPTION, JOptionPane.WARNING_MESSAGE);
+                //log.i("i " + i);
+                if (i == 0) {
+                    try {
+                        File dir = file.getParentFile();
+                        FileUtils.deleteQuietly(file);
+                        fileList.openItem(dir);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
                 }
             });
             JMenuItem rename = new JMenuItem("重命名");
