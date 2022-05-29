@@ -40,3 +40,9 @@ Settings -> Developer settings -> Personal access tokens
 
 1. 首先点击【一键发布】
 2. 在想要分享的文件中右击选择【复制分享链接】
+
+
+### 1.3 其他
+
+可点击右上角【+】【-】来处理分支的添加和删除工作
+

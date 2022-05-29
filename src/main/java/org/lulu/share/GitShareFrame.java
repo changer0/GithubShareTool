@@ -254,7 +254,7 @@ public class GitShareFrame extends JFrame {
                     callback.run();
                 }
             } catch (GitAPIException ex) {
-                log.e(selectedItem + "分支切换失败");
+                log.e(selectedItem + "分支切换失败: " + ex.getMessage());
             }
         });
     }
@@ -357,94 +357,77 @@ public class GitShareFrame extends JFrame {
         delBranch.setBounds(addBranch.getX() + addBranch.getWidth() + 5, addBranch.getY(), 15, 15);
         delBranch.addActionListener(e -> {
             String selectedItem = (String) branchListBox.getSelectedItem();
-            if (StringUtils.equals(DEFAULT_BRANCH, selectedItem)) {
-                log.e("默认分支不可删除!");
-                return;
+            int i = JOptionPane.showConfirmDialog(GitShareFrame.this, "确认删除分支: "+selectedItem+"?","删除分支", JOptionPane.YES_OPTION, JOptionPane.WARNING_MESSAGE);
+            //log.i("i " + i);
+            if (i == 0) {
+                delBranch(selectedItem);
             }
-            //删除
-            TaskHandler.getInstance().enqueue(() -> {
-                try {
-
-                    setCurBranch(DEFAULT_BRANCH);
-                    gitHelper.createBranchWithRemote(DEFAULT_BRANCH);
-                    log.i("开始删除: " + selectedItem);
-                    gitHelper.removeBranch(selectedItem);
-                    log.i("切换默认分支:" + DEFAULT_BRANCH);
-                    refreshBranchList();
-                    log.i("删除成功^v^");
-                } catch (GitAPIException ex) {
-                    log.e("分支删除出错: " + ex.getMessage());
-                }
-            });
 
         });
         add(delBranch);
+    }
+
+    private void delBranch(String branch) {
+
+        if (StringUtils.equals(DEFAULT_BRANCH, branch)) {
+            log.e("默认分支不可删除!");
+            return;
+        }
+        //删除
+        TaskHandler.getInstance().enqueue(() -> {
+            try {
+                setCurBranch(DEFAULT_BRANCH);
+                gitHelper.createBranchWithRemote(DEFAULT_BRANCH);
+                log.i("开始删除: " + branch);
+                gitHelper.removeBranch(branch);
+                log.i("切换默认分支:" + DEFAULT_BRANCH);
+                log.i("删除成功^v^");
+                refreshBranchList();
+                fileList.refresh();
+            } catch (GitAPIException ex) {
+                log.e("分支删除出错: " + ex.getMessage());
+            }
+        });
     }
 
     /**
      * 展示添加分支的 Dialog
      */
     private void showAddBranchDialog() {
-        JDialog dialog = new JDialog(this, "添加分支", true);
-        dialog.setSize(202, 140);
-
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        int x = (screenSize.width - dialog.getWidth()) / 2;
-        int y = (screenSize.height - dialog.getHeight()) / 2;
-        dialog.setLocation(x, y);
-        dialog.setDefaultCloseOperation(dialog.HIDE_ON_CLOSE);
-
-        Container pane = dialog.getContentPane();
-        pane.setLayout(null);
-
-        JLabel label0 = new JLabel("分支名: ");
-        label0.setBounds(PADDING, PADDING, 100, 25);
-        pane.add(label0);
-
-        JTextField jTextField = new JTextField();
-        jTextField.setBounds(60, PADDING, 80, 25);
-        pane.add(jTextField);
 
 
-        JButton save = new JButton("保存");
-        save.setBounds(PADDING, label0.getY() + label0.getHeight() + 10, 60, 30);
-        save.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                super.mouseClicked(e);
-                String newBranch = jTextField.getText();
-                log.i("正在创建分支: " + newBranch);
-                boolean isContainsBranch = false;
-                try {
-                    isContainsBranch = gitHelper.getLocalBranch().contains(newBranch) || gitHelper.getRemoteBranch().contains(newBranch);
-                    if (isContainsBranch) {
-                        log.i("分支已存在");
-                    }
-                } catch (GitAPIException ex) {
-                    log.e("查询分支出错!");
-                }
-                boolean finalIsContainsBranch = isContainsBranch;
-                workThreadSwitchBranch(newBranch, () -> {
-                    //分支切换完之后删掉文件
-                    File workTree = gitHelper.repository.getWorkTree();
-                    File[] files = workTree.listFiles();
-                    if (files != null && !finalIsContainsBranch) {
-                        for (File file : files) {
-                            if (StringUtils.equals(".git", file.getName())) {
-                                continue;
-                            }
-                            FileUtils.deleteQuietly(file);
-                        }
-                    }
-                    oneKeyRelease();
-                    fileList.refresh();
-                    refreshBranchList();
-                });
-                dialog.dispose();
+        String newBranch = JOptionPane.showInputDialog(this, "请输入分支名: ", "添加分支", JOptionPane.QUESTION_MESSAGE );
+
+        if (StringUtils.isEmpty(newBranch)) {
+            return;
+        }
+        log.i("正在创建分支: " + newBranch);
+        boolean isContainsBranch = false;
+        try {
+            isContainsBranch = gitHelper.getLocalBranch().contains(newBranch) || gitHelper.getRemoteBranch().contains(newBranch);
+            if (isContainsBranch) {
+                log.i("分支已存在");
             }
+        } catch (GitAPIException ex) {
+            log.e("查询分支出错!");
+        }
+        boolean finalIsContainsBranch = isContainsBranch;
+        workThreadSwitchBranch(newBranch, () -> {
+            //分支切换完之后删掉文件
+            File workTree = gitHelper.repository.getWorkTree();
+            File[] files = workTree.listFiles();
+            if (files != null && !finalIsContainsBranch) {
+                for (File file : files) {
+                    if (StringUtils.equals(".git", file.getName())) {
+                        continue;
+                    }
+                    FileUtils.deleteQuietly(file);
+                }
+            }
+            oneKeyRelease();
+            fileList.refresh();
+            refreshBranchList();
         });
-        pane.add(save);
-        dialog.setVisible(true);
     }
 
     private void refreshCurGitPath() {
