@@ -322,6 +322,7 @@ public class GitShareFrame extends JFrame {
             branchListBox.addActionListener(branchListBoxListener);
 
         } catch (GitAPIException e) {
+            addEmptyBranch();
             log.e("获取远程分支失败!");
         }
 
@@ -613,7 +614,7 @@ public class GitShareFrame extends JFrame {
         unField.setBounds(60, PADDING + 30, 80, 25);
         pane.add(unField);
 
-        JLabel label2 = new JLabel("密码:");
+        JLabel label2 = new JLabel("令牌:");
         label2.setBounds(PADDING, PADDING + 60, 50, 25);
         pane.add(label2);
         JPasswordField pwdField = new JPasswordField();
