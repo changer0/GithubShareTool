@@ -206,33 +206,33 @@ public class GitShareFrame extends JFrame {
         }
         log.i("copy 完成 ^v^");
     }
-    private void oneKeyRelease() {
-        if (isReleasing) {
-            return;
-        }
-        if (gitHelper == null) {
-            createGitHelper(curGitPath);
-            return;
-        }
-        isReleasing = true;
-        TaskHandler.getInstance().enqueue(() -> {
-            try {
-                log.i("切换分支: " + getCurBranch());
-                gitHelper.createBranchWithRemote(getCurBranch());
-                log.i("开始发布");
-                log.i("开始拉取...");
-                gitHelper.pull();
-                log.i("开始提交...");
-                gitHelper.commit("commit: " + System.currentTimeMillis());
-                log.i("开始推送...");
-                gitHelper.push();
-                log.i("发布完成");
-            } catch (Exception e) {
-                log.e("git 发生错误: 请检查配置" + e.getMessage());
-            }
-            isReleasing = false;
-        });
+    private void asyncRelease() {
+        TaskHandler.getInstance().enqueue(this::syncRelease);
+    }
 
+    private void syncRelease() {
+        try {
+            if (isReleasing) {
+                return;
+            }
+            if (gitHelper == null) {
+                createGitHelper(curGitPath);
+                return;
+            }
+            isReleasing = true;
+            gitHelper.createBranchWithRemote(getCurBranch());
+            log.i("开始发布");
+            log.i("开始拉取...");
+            gitHelper.pull();
+            log.i("开始提交...");
+            gitHelper.commit("commit: " + System.currentTimeMillis());
+            log.i("开始推送...");
+            gitHelper.push();
+            log.i("发布完成");
+        } catch (Exception e) {
+            log.e("git 发生错误: 请检查配置" + e.getMessage());
+        }
+        isReleasing = false;
     }
 
     private boolean checkNeedRelease() {
@@ -263,6 +263,10 @@ public class GitShareFrame extends JFrame {
 
     private void workThreadSwitchBranch(String selectedItem, Runnable callback) {
         TaskHandler.getInstance().enqueue(() -> {
+            log.i("备份当前空间");
+            syncRelease();
+            log.i("清空当前空间");
+            clearCruWorkTree();
             log.i("切换" + selectedItem + "分支...");
             setCurBranch(selectedItem);
             try {
@@ -277,6 +281,20 @@ public class GitShareFrame extends JFrame {
             }
         });
     }
+
+    private void clearCruWorkTree() {
+        File workTree = gitHelper.repository.getWorkTree();
+        File[] files = workTree.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (StringUtils.equals(".git", file.getName())) {
+                    continue;
+                }
+                FileUtils.deleteQuietly(file);
+            }
+        }
+    }
+
 
     ///////////////////////////////////////////////////////////////////////////
     // UI 控制
@@ -413,40 +431,12 @@ public class GitShareFrame extends JFrame {
      * 展示添加分支的 Dialog
      */
     private void showAddBranchDialog() {
-
-
-        String newBranch = JOptionPane.showInputDialog(this, "请输入分支名: ", "添加分支", JOptionPane.QUESTION_MESSAGE );
-
+        String newBranch = JOptionPane.showInputDialog(this, "请输入分支名: ", "添加分支", JOptionPane.QUESTION_MESSAGE);
         if (StringUtils.isEmpty(newBranch)) {
             return;
         }
         log.i("正在创建分支: " + newBranch);
-        boolean isContainsBranch = false;
-        try {
-            isContainsBranch = gitHelper.getLocalBranch().contains(newBranch) || gitHelper.getRemoteBranch().contains(newBranch);
-            if (isContainsBranch) {
-                log.i("分支已存在");
-            }
-        } catch (GitAPIException ex) {
-            log.e("查询分支出错!");
-        }
-        boolean finalIsContainsBranch = isContainsBranch;
-        workThreadSwitchBranch(newBranch, () -> {
-            //分支切换完之后删掉文件
-            File workTree = gitHelper.repository.getWorkTree();
-            File[] files = workTree.listFiles();
-            if (files != null && !finalIsContainsBranch) {
-                for (File file : files) {
-                    if (StringUtils.equals(".git", file.getName())) {
-                        continue;
-                    }
-                    FileUtils.deleteQuietly(file);
-                }
-            }
-            oneKeyRelease();
-            fileList.refresh();
-            refreshBranchList();
-        });
+        workThreadSwitchBranch(newBranch, this::refreshBranchList);
     }
 
     private void refreshCurGitPath() {
@@ -476,8 +466,8 @@ public class GitShareFrame extends JFrame {
         fileList.setFileRightSelectedListener((e, file) -> {
             JPopupMenu jPopupMenu = new JPopupMenu();
             JMenuItem copyLink = new JMenuItem("复制分享链接");
-            JMenuItem delete = new JMenuItem("删除");
             copyLink.addActionListener(e1 -> copyShareLink(file));
+            JMenuItem delete = new JMenuItem("删除");
             delete.addActionListener(e12 -> {
                 try {
                     File dir = file.getParentFile();
@@ -487,7 +477,21 @@ public class GitShareFrame extends JFrame {
                     ex.printStackTrace();
                 }
             });
+            JMenuItem rename = new JMenuItem("重命名");
+            rename.addActionListener(e1 -> {
+                String newName = (String) JOptionPane.showInputDialog(this, "请输入文件名: ", "重命名", JOptionPane.QUESTION_MESSAGE, null, null, file.getName());
+                if (StringUtils.isEmpty(newName)) {
+                    return;
+                }
+                if (file.renameTo(new File(file.getParentFile(), newName))) {
+                    log.i("重命名成功: " + newName);
+                    fileList.refresh();
+                } else {
+                    log.e("重命名失败");
+                }
+            });
             jPopupMenu.add(copyLink);
+            jPopupMenu.add(rename);
             jPopupMenu.add(delete);
             jPopupMenu.show(fileList, e.getX(), e.getY());
         });
@@ -567,7 +571,7 @@ public class GitShareFrame extends JFrame {
         });
 
         addRightButton(box, "一键发布", event -> {
-            oneKeyRelease();
+            asyncRelease();
         });
 
         addRightButton(box, "刷         新", event -> {
