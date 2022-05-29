@@ -57,6 +57,10 @@ public class FileList extends JList<FileList.FileItem> {
         });
     }
 
+    public File getNowDir() {
+        return nowDir;
+    }
+
     public void openItem(File file) {
         if (file.isFile()) {
             file = fsv.getParentDirectory(file);

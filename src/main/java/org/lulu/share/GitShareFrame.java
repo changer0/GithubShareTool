@@ -177,16 +177,35 @@ public class GitShareFrame extends JFrame {
         log.i("成功复制到剪切板: " + result);
     }
 
-
-    private void tryAutoRelease() {
-        log.i("尝试自动发布");
-        if (checkNeedRelease()) {
-            oneKeyRelease();
-        } else {
-            log.i("无需发布");
+    private void copyFileToHere(File selectedFile) {
+        log.i("正在 copy " + selectedFile);
+        try {
+            File nowDir = fileList.getNowDir();
+            File[] files = nowDir.listFiles();
+            if (files == null) {
+                return;
+            }
+            boolean hasSameNameFile = false;
+            for (File file : files) {
+                if (StringUtils.equals(file.getName(), selectedFile.getName())) {
+                    hasSameNameFile = true;
+                    break;
+                }
+            }
+            if (hasSameNameFile) {
+                int i = JOptionPane.showConfirmDialog(GitShareFrame.this, "包含同名文件, 是否覆盖?", "警告!", JOptionPane.YES_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (i != 0) {
+                    log.i("copy 取消!");
+                    return;
+                }
+            }
+            FileUtils.copyFile(selectedFile, new File(nowDir, selectedFile.getName()));
+            fileList.refresh();
+        } catch (Exception e) {
+            log.e("copy 出错!");
         }
+        log.i("copy 完成 ^v^");
     }
-
     private void oneKeyRelease() {
         if (isReleasing) {
             return;
@@ -440,7 +459,11 @@ public class GitShareFrame extends JFrame {
     private void addList() {
         JPanel jPanel = new JPanel();
         jPanel.setTransferHandler(SelectFileUtil.createDragTransferHandler(selectedFile -> {
-            createGitHelper(selectedFile.getAbsolutePath());
+            if (gitHelper == null) {
+                createGitHelper(selectedFile.getAbsolutePath());
+            } else {
+                copyFileToHere(selectedFile);
+            }
         }));
 
         JLabel jTextField = new JLabel();
