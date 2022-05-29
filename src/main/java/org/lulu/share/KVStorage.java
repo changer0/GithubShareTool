@@ -1,11 +1,13 @@
 package org.lulu.share;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,6 +29,24 @@ import java.util.concurrent.ConcurrentHashMap;
 public class KVStorage {
 
     public static final Map<String, String> CACHE = new ConcurrentHashMap<>();
+
+    public static void init() {
+        String s = "";
+        try {
+            s = FileUtils.readFileToString(getAndCreateConfigFile(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (StringUtils.isEmpty(s)) {
+            return;
+        }
+        JSONObject jsonObject = new JSONObject(s);
+        Iterator<String> keys = jsonObject.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            CACHE.put(key, jsonObject.optString(key));
+        }
+    }
 
     public static void put(String key, String value) {
 
@@ -66,7 +86,9 @@ public class KVStorage {
         } else {
             jsonObj = new JSONObject(s);
         }
-        return jsonObj.optString(key, defaultValue);
+        String v = jsonObj.optString(key, defaultValue);
+        CACHE.put(key, v);
+        return v;
     }
 
     private static File getAndCreateConfigFile() {

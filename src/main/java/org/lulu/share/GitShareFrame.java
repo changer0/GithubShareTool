@@ -58,6 +58,7 @@ public class GitShareFrame extends JFrame {
 
     public GitShareFrame() throws HeadlessException {
         super("GitHub 分享工具");
+        KVStorage.init();
         fileList.setShowHide(false);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         //禁止调整大小
